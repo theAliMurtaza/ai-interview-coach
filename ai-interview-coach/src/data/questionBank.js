@@ -424,11 +424,19 @@ function collectPool(role, type, difficulty) {
  * repeat as little as possible and never back-to-back.
  */
 export function buildQuestionSet({ role, type, difficulty, count = DEFAULT_QUESTIONS }) {
-  const target = Math.max(MIN_QUESTIONS, Math.min(MAX_QUESTIONS, count));
+  const target = Number.isFinite(count)
+    ? Math.max(MIN_QUESTIONS, Math.min(MAX_QUESTIONS, Math.trunc(count)))
+    : DEFAULT_QUESTIONS;
   const pool = collectPool(role, type, difficulty);
   if (pool.length === 0) return [];
 
   let result = shuffle(pool);
+  if (type === "technical") {
+    const technical = (byRole[role] || byRole.fullstack).technical;
+    const preferred = technical[difficulty] || technical.junior;
+    const preferredIds = new Set(preferred.map(q => q.id));
+    result = [...shuffle(preferred), ...shuffle(pool.filter(q => !preferredIds.has(q.id)))];
+  }
 
   while (result.length < target) {
     let batch = shuffle(pool);

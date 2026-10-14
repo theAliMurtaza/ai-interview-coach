@@ -1,19 +1,31 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Download, RotateCcw, LayoutDashboard, ChevronDown } from "lucide-react";
-import { getSessionById } from "../services/storageService";
+import { getSession } from "../services/interviewService";
 import { generateSessionPdf } from "../services/reportService";
 import ScoreBar from "../components/ScoreBar";
 import { scoreLabel } from "../services/evaluationService";
 
 export default function Results() {
   const { id } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [session, setSession] = useState(null);
   const [openIndex, setOpenIndex] = useState(0);
 
   useEffect(() => {
-    setSession(getSessionById(id));
-  }, [id]);
+    let active = true;
+    setLoading(true); setError(""); setSession(null);
+    getSession(id).then(value => { if (active) setSession(value); })
+      .catch(err => { if (active) setError(err.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [id, retry]);
+
+  if (loading) return <p role="status" className="p-8 text-center">Loading your saved report…</p>;
+  if (error) return <div className="p-8 text-center"><p role="alert">{error}</p><button onClick={() => setRetry(v => v + 1)} className="mt-4 text-[var(--teal)]">Retry connection</button></div>;
+  if (session?.status !== "completed" && session) return <div className="p-8 text-center">This interview is still in progress. <Link to={`/interview/${id}`} className="text-[var(--teal)]">Resume interview</Link></div>;
 
   if (!session) {
     return (
@@ -49,7 +61,7 @@ export default function Results() {
         <div>
           <div className="text-sm font-medium">{scoreLabel(summary.overallScore)} overall</div>
           <div className="mt-1 text-sm text-[var(--text-muted)]">
-            {summary.questionCount} questions · avg pace {summary.avgWpm} wpm ·{" "}
+            {summary.questionCount} responses, including follow-ups · avg pace {summary.avgWpm} wpm ·{" "}
             {summary.totalFillers} filler words
           </div>
         </div>
@@ -148,6 +160,7 @@ export default function Results() {
                       Consider mentioning: {e.conceptsMissed.join(", ")}
                     </p>
                   )}
+                  {e.feedback && <p className="mt-3 text-[var(--text-secondary)]">{e.feedback}</p>}
                 </div>
               )}
             </div>

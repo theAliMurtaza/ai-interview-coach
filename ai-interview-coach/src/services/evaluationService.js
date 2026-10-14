@@ -28,7 +28,7 @@ function countFillerWords(text) {
   let count = 0;
   const hits = {};
   for (const filler of FILLER_WORDS) {
-    const pattern = new RegExp(`\\b${filler.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g");
+    const pattern = new RegExp(`(?<!\\w)${filler.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\w)`, "g");
     const matches = lower.match(pattern);
     if (matches) {
       count += matches.length;
@@ -49,6 +49,7 @@ function wordCount(text) {
  * @returns {object} full per-answer evaluation
  */
 export function evaluateAnswer(transcript, durationSeconds, expectedConcepts = []) {
+  durationSeconds = Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 1;
   const words = wordCount(transcript);
   const minutes = Math.max(durationSeconds / 60, 1 / 60);
   const wpm = Math.round(words / minutes);
@@ -57,7 +58,10 @@ export function evaluateAnswer(transcript, durationSeconds, expectedConcepts = [
   const fillerRatio = words > 0 ? fillerCount / words : 0;
 
   const lower = transcript.toLowerCase();
-  const conceptsHit = expectedConcepts.filter((c) => lower.includes(c.toLowerCase()));
+  const conceptsHit = expectedConcepts.filter((c) => {
+    const escaped = c.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?<!\\w)${escaped}(?!\\w)`).test(lower);
+  });
   const conceptCoverage = expectedConcepts.length
     ? Math.round((conceptsHit.length / expectedConcepts.length) * 100)
     : null;
@@ -78,7 +82,7 @@ export function evaluateAnswer(transcript, durationSeconds, expectedConcepts = [
   // Communication score: blends filler ratio + pace band, out of 100.
   const fillerPenalty = Math.min(fillerRatio * 400, 45); // heavy filler use caps around -45
   const pacePenalty = wpm < 90 || wpm > 200 ? 15 : wpm < 100 || wpm > 180 ? 8 : 0;
-  const communicationScore = Math.max(0, Math.round(100 - fillerPenalty - pacePenalty));
+  const communicationScore = words ? Math.max(0, Math.round(100 - fillerPenalty - pacePenalty)) : 0;
 
   const technicalScore = conceptCoverage;
 

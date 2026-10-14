@@ -37,7 +37,7 @@ export default function Landing() {
                 <span className="pulse-ring absolute h-2 w-2 text-[var(--red)]" />
                 <span className="h-2 w-2 rounded-full bg-[var(--red)]" />
               </span>
-              Practice sessions are live in your browser — no signup
+              Practice interviews with saved results in your account
             </div>
 
             <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight md:text-5xl">

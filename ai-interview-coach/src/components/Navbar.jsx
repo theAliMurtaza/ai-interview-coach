@@ -1,5 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Mic } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { useState } from "react";
 
 const LINKS = [
   { to: "/setup", label: "New session" },
@@ -8,6 +10,14 @@ const LINKS = [
 
 export default function Navbar() {
   const location = useLocation();
+  const { user, signOut } = useAuth();
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function exit() {
+    setBusy(true); setError("");
+    try { await signOut(); } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/85 backdrop-blur">
@@ -38,8 +48,11 @@ export default function Navbar() {
               </Link>
             );
           })}
+          {user ? <button disabled={busy} onClick={exit} className="rounded-md px-3 py-2 text-sm text-[var(--teal)]">{busy ? "Signing out…" : "Sign out"}</button>
+            : <Link to="/login" className="rounded-md px-3 py-2 text-sm text-[var(--teal)]">Sign in</Link>}
         </div>
       </nav>
+      {error && <p role="alert" className="px-6 pb-3 text-[var(--red)]">{error}</p>}
     </header>
   );
 }

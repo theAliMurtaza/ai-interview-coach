@@ -14,13 +14,11 @@ export function InterviewProvider({ children }) {
     inputMode: "voice", // "voice" | "text"
   });
 
-  const [lastSession, setLastSession] = useState(null);
-
   const updateSetup = useCallback((patch) => {
     setSetup((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  const value = { setup, updateSetup, lastSession, setLastSession };
+  const value = { setup, updateSetup };
 
   return <InterviewContext.Provider value={value}>{children}</InterviewContext.Provider>;
 }

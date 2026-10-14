@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Trash2, ArrowRight, Mic } from "lucide-react";
+import { ArrowRight, Mic } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -10,31 +10,48 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { getAllSessions, clearAllSessions } from "../services/storageService";
+import { listSessions } from "../services/interviewService";
 import { scoreLabel } from "../services/evaluationService";
 
 export default function Dashboard() {
   const [sessions, setSessions] = useState([]);
+  const [storageError, setStorageError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [more, setMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    setSessions(getAllSessions());
-  }, []);
+    let active = true;
+    setLoading(true); setStorageError("");
+    listSessions().then(rows => { if (active) { setSessions(rows); setMore(rows.length === 20); } })
+      .catch(err => { if (active) setStorageError(err.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [retry]);
+
+  async function loadMore() {
+    if (loadingMore) return;
+    setLoadingMore(true); setStorageError("");
+    try {
+      const rows = await listSessions(sessions.length);
+      setSessions(previous => [...previous, ...rows.filter(row => !previous.some(item => item.id === row.id))]);
+      setMore(rows.length === 20);
+    } catch (err) { setStorageError(err.message); }
+    finally { setLoadingMore(false); }
+  }
 
   const chartData = [...sessions]
+    .filter(s => s.status === "completed")
     .reverse()
     .map((s, i) => ({
       name: `#${i + 1}`,
       overall: s.summary.overallScore,
       communication: s.summary.communicationScore,
-      fillers: s.summary.totalFillers,
     }));
 
-  const handleClear = () => {
-    if (confirm("Clear all saved interview sessions? This can't be undone.")) {
-      clearAllSessions();
-      setSessions([]);
-    }
-  };
+  if (loading) return <p role="status" className="p-8 text-center">Loading your saved interviews…</p>;
+  if (storageError && !sessions.length) return <div className="p-8 text-center"><p role="alert">{storageError}</p><button onClick={() => setRetry(v => v + 1)} className="mt-4 text-[var(--teal)]">Retry connection</button></div>;
 
   if (sessions.length === 0) {
     return (
@@ -56,6 +73,7 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
+      {storageError && <p role="alert" className="mb-4 text-[var(--red)]">{storageError}</p>}
       <div className="flex items-center justify-between">
         <div>
           <div className="mb-1 font-[var(--font-mono)] text-xs uppercase tracking-wider text-[var(--text-muted)]">
@@ -63,12 +81,6 @@ export default function Dashboard() {
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">Your trend</h1>
         </div>
-        <button
-          onClick={handleClear}
-          className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--red)]"
-        >
-          <Trash2 size={14} /> Clear history
-        </button>
       </div>
 
       {/* Trend chart */}
@@ -115,7 +127,7 @@ export default function Dashboard() {
         {sessions.map((s) => (
           <Link
             key={s.id}
-            to={`/results/${s.id}`}
+            to={s.status === "completed" ? `/results/${s.id}` : `/interview/${s.id}`}
             className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--border-soft)]"
           >
             <div>
@@ -128,14 +140,15 @@ export default function Dashboard() {
             </div>
             <div className="text-right">
               <div className="font-[var(--font-mono)] text-lg tabular-nums">
-                {s.summary.overallScore}
-                <span className="text-xs text-[var(--text-muted)]">/100</span>
+                {s.status === "completed" ? s.summary.overallScore : "Resume"}
+                {s.status === "completed" && <span className="text-xs text-[var(--text-muted)]">/100</span>}
               </div>
-              <div className="text-xs text-[var(--text-muted)]">{scoreLabel(s.summary.overallScore)}</div>
+              <div className="text-xs text-[var(--text-muted)]">{s.status === "completed" ? scoreLabel(s.summary.overallScore) : "In progress"}</div>
             </div>
           </Link>
         ))}
       </div>
+      {more && <button disabled={loadingMore} onClick={loadMore} className="mt-6 text-[var(--teal)]">{loadingMore ? "Loading…" : "Load more interviews"}</button>}
     </div>
   );
 }

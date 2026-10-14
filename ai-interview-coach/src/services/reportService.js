@@ -20,6 +20,13 @@ export function generateSessionPdf(session) {
       y = MARGIN;
     }
   };
+  const writeLines = (lines, lineHeight = 4.5) => {
+    for (const line of lines) {
+      addPageIfNeeded(lineHeight);
+      doc.text(line, MARGIN, y);
+      y += lineHeight;
+    }
+  };
 
   // Header
   doc.setFont("helvetica", "bold");
@@ -56,13 +63,12 @@ export function generateSessionPdf(session) {
     `Filler words used: ${s.totalFillers}${
       s.topFillers?.length ? ` (most used: ${s.topFillers.map(([w, n]) => `"${w}" x${n}`).join(", ")})` : ""
     }`,
-    `Questions answered: ${s.questionCount}`,
+    `Responses (including follow-ups): ${s.questionCount}`,
   ];
   summaryLines.forEach((line) => {
     addPageIfNeeded();
     const wrapped = doc.splitTextToSize(line, CONTENT_WIDTH);
-    doc.text(wrapped, MARGIN, y);
-    y += wrapped.length * 5;
+    writeLines(wrapped, 5);
   });
 
   y += 4;
@@ -82,8 +88,8 @@ export function generateSessionPdf(session) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10.5);
     const qLines = doc.splitTextToSize(`Q${idx + 1}. ${a.question}`, CONTENT_WIDTH);
-    doc.text(qLines, MARGIN, y);
-    y += qLines.length * 5 + 1;
+    writeLines(qLines, 5);
+    y += 1;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
@@ -92,9 +98,8 @@ export function generateSessionPdf(session) {
       `Your answer: "${a.transcript || "(no answer recorded)"}"`,
       CONTENT_WIDTH
     );
-    addPageIfNeeded(transcriptLines.length * 4.5 + 20);
-    doc.text(transcriptLines, MARGIN, y);
-    y += transcriptLines.length * 4.5 + 2;
+    writeLines(transcriptLines);
+    y += 2;
 
     doc.setTextColor(0);
     const evalu = a.evaluation;
@@ -105,16 +110,14 @@ export function generateSessionPdf(session) {
     addPageIfNeeded(metricLines.length * 4.5 + 8);
     doc.setFontSize(9);
     doc.setTextColor(50);
-    doc.text(metricLines, MARGIN, y);
-    y += metricLines.length * 4.5;
+    writeLines(metricLines);
 
     if (evalu.conceptsMissed?.length) {
       const missedLine = `Consider mentioning: ${evalu.conceptsMissed.join(", ")}`;
       const missedLines = doc.splitTextToSize(missedLine, CONTENT_WIDTH);
       addPageIfNeeded(missedLines.length * 4.5 + 4);
       doc.setTextColor(150, 90, 20);
-      doc.text(missedLines, MARGIN, y);
-      y += missedLines.length * 4.5;
+      writeLines(missedLines);
       doc.setTextColor(0);
     }
 

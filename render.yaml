@@ -1,0 +1,49 @@
+# Import as a Render Blueprint. All databases and storage are external.
+services:
+  - type: web
+    name: interview-coach-api
+    runtime: python
+    plan: free
+    rootDir: console-backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python start.py
+    # Readiness is checked manually at /ready. Frequent DB probes prevent Neon sleeping.
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_SYNC
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: BACKEND_CORS_ORIGINS
+        sync: false
+      # The Render-provided public hostname is added automatically at startup.
+      - key: ALLOWED_HOSTS
+        value: '["localhost","127.0.0.1"]'
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: AI_ENABLED
+        value: "false"
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: STORAGE_ENDPOINT_URL
+        sync: false
+      - key: STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: STORAGE_BUCKET_NAME
+        sync: false
+      - key: STORAGE_REGION
+        value: auto
+      - key: DATABASE_POOL_SIZE
+        value: "2"
+      - key: DATABASE_MAX_OVERFLOW
+        value: "3"

@@ -11,6 +11,9 @@ import {
 } from "../data/questionBank";
 import { useInterview } from "../context/InterviewContext";
 import { isSpeechRecognitionSupported } from "../services/speechService";
+import { createInterview } from "../services/interviewService";
+import { useRef } from "react";
+import ResumeSetup, { parseSpecialties } from "../components/ResumeSetup";
 
 const COUNT_PRESETS = [5, 10, 15, 20, 30, 40];
 
@@ -31,12 +34,23 @@ export default function RoleSelect() {
   const [type, setType] = useState(setup.type);
   const [difficulty, setDifficulty] = useState(setup.difficulty);
   const [questionCount, setQuestionCount] = useState(setup.questionCount ?? DEFAULT_QUESTIONS);
-  const [inputMode, setInputMode] = useState(setup.inputMode ?? "voice");
+  const [inputMode, setInputMode] = useState(isSpeechRecognitionSupported() ? (setup.inputMode ?? "voice") : "text");
 
   const voiceSupported = isSpeechRecognitionSupported();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [resumeId, setResumeId] = useState("");
+  const [specialties, setSpecialties] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const topics = parseSpecialties(specialties);
+  const specialtyError = topics.length > 20 ? "Choose up to 20 specialties." : topics.some(topic => topic.length > 60) ? "Keep each specialty under 61 characters." : "";
+  const submitting = useRef(false);
   const canStart = Boolean(role);
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    if (submitting.current || !role || uploading || specialtyError) return;
+    submitting.current = true;
+    setBusy(true); setError("");
     const roleLabel = ROLES.find((r) => r.id === role)?.label ?? "";
     const typeLabel = INTERVIEW_TYPES.find((t) => t.id === type)?.label ?? "";
     const difficultyLabel = DIFFICULTIES.find((d) => d.id === difficulty)?.label ?? "";
@@ -50,7 +64,11 @@ export default function RoleSelect() {
       questionCount,
       inputMode: voiceSupported ? inputMode : "text",
     });
-    navigate("/interview");
+    try {
+      const interview = await createInterview({ role, type, difficulty, questionCount, resumeId, specialties: topics });
+      navigate(`/interview/${interview.id}`);
+    } catch (err) { setError(err.message); }
+    finally { submitting.current = false; setBusy(false); }
   };
 
   return (
@@ -63,6 +81,11 @@ export default function RoleSelect() {
         Pick the role you're prepping for, the interview style, and how tough it
         should be. You can change this every session.
       </p>
+
+      <ResumeSetup resumeId={resumeId} specialties={specialties} onResume={setResumeId}
+        onSpecialties={setSpecialties} onUploading={setUploading} disabled={busy} />
+      {specialtyError && <p role="alert" className="mt-2 text-sm text-[var(--red)]">{specialtyError}</p>}
+      {topics.length > questionCount && <p className="mt-2 text-sm text-[var(--text-secondary)]">You selected more topics than questions. Increase the question count to cover every specialty.</p>}
 
       {/* Role grid */}
       <div className="mt-10">
@@ -214,12 +237,13 @@ export default function RoleSelect() {
         )}
       </div>
 
+      {error && <p role="alert" className="mt-6 text-[var(--red)]">{error}</p>}
       <button
         onClick={handleStart}
-        disabled={!canStart}
+        disabled={!canStart || busy || uploading || Boolean(specialtyError)}
         className="mt-12 inline-flex items-center gap-2 rounded-md bg-[var(--amber)] px-6 py-3 text-sm font-medium text-[#1a1305] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Begin interview <ArrowRight size={16} />
+        {busy ? "Creating interview…" : "Begin interview"} <ArrowRight size={16} />
       </button>
       {!canStart && (
         <p className="mt-2 text-xs text-[var(--text-muted)]">Pick a role to continue.</p>
