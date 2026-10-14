@@ -30,7 +30,7 @@ class RequestPolicyMiddleware:
 
         path = scope["path"]
         try:
-            if path not in {"/health", "/ready"} and scope["method"] != "OPTIONS":
+            if path not in {"/", "/health", "/ready"} and scope["method"] != "OPTIONS":
                 ip = (scope.get("client") or ("unknown",))[0]
                 auth = path.startswith(settings.API_V1_PREFIX + "/auth/")
                 webhook = path.startswith(settings.API_V1_PREFIX + "/webhooks/")

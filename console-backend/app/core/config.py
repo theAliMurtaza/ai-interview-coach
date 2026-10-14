@@ -17,7 +17,7 @@ from app.core.database_urls import async_database_url
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     # App
     APP_NAME: str = "Console API"
@@ -88,6 +88,30 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_database_url(cls, value):
         return async_database_url(value)
+
+    @field_validator("REDIS_URL")
+    @classmethod
+    def validate_redis_url(cls, value):
+        message = (
+            "REDIS_URL must be a Redis connection URL, for example "
+            "rediss://default:PASSWORD@HOST:6379. Use Upstash's TCP/TLS URL, "
+            "not its https:// REST endpoint or a redis-cli command."
+        )
+        try:
+            parsed = urlsplit(value)
+            valid = (
+                parsed.scheme in {"redis", "rediss"}
+                and parsed.hostname
+                and not parsed.fragment
+                and not any(char.isspace() or ord(char) < 32 for char in value)
+                and (parsed.port is None or 1 <= parsed.port <= 65535)
+                and (parsed.path in {"", "/"} or parsed.path[1:].isdigit())
+            )
+        except ValueError:
+            valid = False
+        if not valid:
+            raise ValueError(message) from None
+        return value
 
     @model_validator(mode="after")
     def validate_deployment(self):

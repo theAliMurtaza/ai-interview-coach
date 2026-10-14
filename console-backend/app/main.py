@@ -80,6 +80,16 @@ def create_app() -> FastAPI:
         trace.set_tracer_provider(provider)
         FastAPIInstrumentor.instrument_app(app)
 
+    @app.get("/", include_in_schema=False)
+    async def index() -> dict:
+        return {
+            "service": settings.APP_NAME,
+            "message": "Backend API. Open your Vercel frontend to use the interview coach.",
+            "health": "/health",
+            "readiness": "/ready",
+            "api": settings.API_V1_PREFIX,
+        }
+
     @app.get("/health", tags=["health"])
     async def health() -> dict:
         return {"status": "ok"}
