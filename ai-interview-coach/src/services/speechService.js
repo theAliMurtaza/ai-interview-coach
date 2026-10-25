@@ -19,67 +19,82 @@ export const isSpeechSynthesisSupported = () =>
  * @param {Object} handlers
  * @param {(text: string, isFinal: boolean) => void} handlers.onResult
  * @param {() => void} handlers.onStart
- * @param {() => void} handlers.onEnd
  * @param {(err: any) => void} handlers.onError
+ * @param {(state: string) => void} handlers.onState
  * @returns {{ stop: () => void } | null}
  */
-export function startListening({ onResult, onStart, onEnd, onError }) {
+export function startListening({ onResult, onStart, onError, onState }) {
   if (!SpeechRecognitionAPI) {
     onError?.(new Error("SpeechRecognition is not supported in this browser."));
     return null;
   }
 
-  const recognition = new SpeechRecognitionAPI();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = "en-US";
-
-  let finalTranscript = "";
+  let recognition;
   let stopped = false;
+  let timer;
+  let completed = "";
+  let emptyRestarts = 0;
 
-  recognition.onstart = () => onStart?.();
+  function detach(instance) {
+    instance.onresult = instance.onerror = instance.onend = instance.onstart = null;
+  }
 
-  recognition.onresult = (event) => {
-    if (stopped) return;
-    let interim = "";
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const chunk = event.results[i][0].transcript;
-      if (event.results[i].isFinal) {
-        finalTranscript += chunk + " ";
-        onResult?.(finalTranscript.trim(), true);
-      } else {
-        interim += chunk;
-        onResult?.((finalTranscript + interim).trim(), false);
-      }
-    }
-  };
-
-  recognition.onerror = (event) => {
-    if (stopped) return;
-    stopped = true;
-    onError?.(event);
-  };
-  recognition.onend = () => {
-    if (!stopped) onEnd?.();
-    stopped = true;
-  };
-
-  try {
-    recognition.start();
-  } catch (error) {
-    stopped = true;
+  function fail(error) {
+    stop();
+    onState?.("paused");
     onError?.(error);
+  }
+
+  function begin() {
+    if (stopped) return;
+    const instance = new SpeechRecognitionAPI();
+    recognition = instance;
+    instance.continuous = true;
+    instance.interimResults = true;
+    instance.lang = "en-US";
+    let cycleText = "";
+    let lastError;
+    const active = () => !stopped && recognition === instance;
+    onState?.("starting");
+    instance.onstart = () => { if (active()) { onState?.("listening"); onStart?.(); } };
+    instance.onresult = event => {
+      if (!active()) return;
+      // Results are cumulative within a recognition session. Rebuild rather than
+      // appending revised interim/final results and duplicating earlier words.
+      cycleText = Array.from(event.results, result => result[0].transcript.trim()).join(" ").trim();
+      if (cycleText) emptyRestarts = 0;
+      onResult?.([completed, cycleText].filter(Boolean).join(" "), Array.from(event.results).every(result => result.isFinal));
+    };
+    instance.onerror = event => {
+      if (!active()) return;
+      lastError = event;
+      if (!["no-speech", "network", "aborted"].includes(event.error)) fail(event);
+      // Recoverable errors are followed by onend; restart only after disconnection.
+    };
+    instance.onend = () => {
+      if (!active()) return;
+      detach(instance);
+      recognition = null;
+      completed = [completed, cycleText].filter(Boolean).join(" ");
+      emptyRestarts = cycleText ? 0 : emptyRestarts + 1;
+      if (emptyRestarts > 5) { fail(lastError || new Error("Speech recognition keeps disconnecting.")); return; }
+      onState?.("reconnecting");
+      timer = setTimeout(begin, Math.min(250 * 2 ** emptyRestarts, 4000));
+    };
+    try { instance.start(); } catch (error) { fail(error); }
   }
 
   function stop() {
     stopped = true;
-    recognition.onresult = null;
-    recognition.onerror = null;
-    recognition.onend = null;
-    recognition.onstart = null;
-    try { recognition.abort(); } catch { /* already stopped */ }
+    clearTimeout(timer);
+    if (recognition) {
+      detach(recognition);
+      try { recognition.abort(); } catch { /* already stopped */ }
+      recognition = null;
+    }
   }
 
+  begin();
   return {
     stop,
     abort: stop,

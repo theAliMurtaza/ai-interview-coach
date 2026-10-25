@@ -135,3 +135,84 @@ test("another account cannot read a saved interview", async ({ page, browser }) 
     await expect(otherPage.getByRole("alert")).toContainText("different user");
   } finally { await other.close(); }
 });
+
+test("voice reconnects across browser session limits without switching to typing or losing words", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__recognizers = [];
+    window.SpeechRecognition = class {
+      constructor() { window.__recognizers.push(this); }
+      start() { setTimeout(() => this.onstart?.(), 0); }
+      abort() { this.aborted = true; }
+    };
+  });
+  await register(page);
+  await page.getByRole("button", { name: "Backend Developer", exact: true }).click();
+  await page.getByRole("button", { name: "Speak my answers" }).click();
+  await page.getByRole("slider").fill("3");
+  await page.getByRole("button", { name: "Begin interview" }).click();
+  await expect(page.getByRole("status")).toContainText("Listening — speak your answer");
+  const phrases = ["I built an API", "with Python", "and tested it"];
+  for (let index = 0; index < phrases.length; index++) {
+    await page.evaluate(phrase => {
+      const recognizer = window.__recognizers.at(-1);
+      recognizer.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: phrase }], { isFinal: true })] });
+      recognizer.onend();
+    }, phrases[index]);
+    await expect.poll(() => page.evaluate(() => window.__recognizers.length)).toBe(index + 2);
+    await expect(page.getByRole("button", { name: "I'm done answering" })).toBeEnabled();
+    await expect(page.getByRole("textbox", { name: "Your answer" })).toHaveCount(0);
+  }
+  await expect(page.getByText(phrases.join(" "), { exact: true })).toBeVisible();
+  await page.evaluate(() => window.__recognizers.at(-1).onerror({ error: "not-allowed" }));
+  await expect(page.getByRole("status")).toContainText("Microphone paused");
+  await expect(page.getByRole("textbox", { name: "Your answer" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Retry microphone" }).click();
+  await expect(page.getByRole("status")).toContainText("Listening — speak your answer");
+  const saved = page.waitForResponse(response => response.url().includes("/answer") && response.request().method() === "POST");
+  await page.getByRole("button", { name: "I'm done answering" }).click();
+  expect((await (await saved).json()).answer.transcript).toBe(phrases.join(" "));
+});
+
+test("resume projects become questions and saved assessments include improvement suggestions", async ({ page }) => {
+  await register(page);
+  const upload = page.getByLabel("Upload resume (optional)");
+  await expect(upload).toBeEnabled();
+  await upload.setInputFiles({ name: "projects.txt", mimeType: "text/plain", buffer: Buffer.from(
+    "Alex Candidate\nBackend Developer\nSkills: Python, FastAPI\nProjects\nInterview Coach | FastAPI\nBuilt private resume uploads.\nShop Portal | Python\nDeveloped product search.\nEducation\nExample University"
+  ) });
+  await expect(page.getByText("Projects for your interview", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Type my answers" }).click();
+  await page.getByRole("slider").fill("3");
+  await page.getByRole("button", { name: "Begin interview" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText('resume project "Interview Coach"');
+  await expect(page.getByRole("textbox", { name: "Your answer" })).toBeEnabled();
+  await page.getByRole("textbox", { name: "Your answer" }).fill("The problem was confusing interview preparation.");
+  await page.getByRole("button", { name: "Submit answer" }).click();
+  await page.getByText("Previous answer feedback", { exact: true }).click();
+  await expect(page.getByRole("heading", { name: "How to improve" })).toBeVisible();
+  await skipRemaining(page);
+  await expect(page.getByRole("region", { name: "Answer assessment" })).toContainText("Concepts covered");
+  await expect(page.getByRole("heading", { name: "How to improve" })).toBeVisible();
+  await expect(page.getByText(/cannot verify whether statements are right or wrong/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "How to improve" })).toBeVisible();
+  // Exercise AI assessment rendering separately from the live provider, which is
+  // disabled in local tests. All other report content comes from the saved session.
+  await page.route("**/api/v1/interviews/*", async route => {
+    const response = await route.fetch();
+    const session = await response.json();
+    session.questions[0].answer.evaluation.assessment = {
+      method: "ai", correct_percentage: 60, incorrect_percentage: 10, missing_percentage: 30,
+      strengths: ["Explained the purpose."], corrections: ["Clarify the database consistency claim."],
+      improvements: ["Explain a transaction with a concrete example."],
+    };
+    await route.fulfill({ response, json: session });
+  });
+  await page.reload();
+  const assessment = page.getByRole("region", { name: "Answer assessment" });
+  await expect(assessment.getByText("Correct", { exact: true })).toBeVisible();
+  await expect(assessment.getByText("60%", { exact: true })).toBeVisible();
+  await expect(assessment.getByText("10%", { exact: true })).toBeVisible();
+  await expect(assessment.getByText("30%", { exact: true })).toBeVisible();
+  await expect(assessment.getByText("Clarify the database consistency claim.")).toBeVisible();
+});

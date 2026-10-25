@@ -13,6 +13,7 @@ from app.models.resume import Resume
 from app.models.user import User
 from app.schemas.resume import ResumeUploadResponse
 from app.services.resume_headline import detect_resume_header
+from app.services.resume_projects import resume_projects
 from app.services.resume_service import ResumeService
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
@@ -24,6 +25,7 @@ def resume_response(resume: Resume) -> ResumeUploadResponse:
         {
             **ResumeUploadResponse.model_validate(resume).model_dump(),
             **detect_resume_header(resume.raw_text, resume.skills),
+            "projects": resume_projects(resume.raw_text, resume.projects),
         }
     )
 

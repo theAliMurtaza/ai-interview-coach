@@ -12,6 +12,7 @@ from app.services.question_bank_data import (
     SeedQuestion,
     get_technical_pool,
 )
+from app.services.resume_projects import include_project_questions
 
 
 class QuestionService:
@@ -38,16 +39,20 @@ class QuestionService:
         count: int,
         specialties: list[str] | None = None,
         start_index: int = 0,
+        projects: list[dict] | None = None,
     ) -> list[SeedQuestion]:
         if specialties:
             from app.services.specialty_questions import specialty_question_set
 
-            return specialty_question_set(
+            seeds = specialty_question_set(
                 specialties=specialties,
                 interview_type=interview_type,
                 difficulty=difficulty,
                 count=count,
                 start_index=start_index,
+            )
+            return include_project_questions(
+                seeds, projects, interview_type, difficulty, start_index
             )
         pool = self._collect_pool(role=role, interview_type=interview_type, difficulty=difficulty)
         if not pool:
@@ -64,7 +69,9 @@ class QuestionService:
                     batch[0],
                 )
             result.extend(batch)
-        return result[:count]
+        return include_project_questions(
+            result[:count], projects, interview_type, difficulty, start_index
+        )
 
     async def generate_questions_with_llm(
         self,
@@ -74,6 +81,7 @@ class QuestionService:
         difficulty: DifficultyLevel,
         count: int,
         specialties: list[str] | None = None,
+        projects: list[dict] | None = None,
     ) -> list[SeedQuestion]:
         from app.agents.llm_provider import get_llm_provider
         from app.agents.prompts.question_generation import SYSTEM_PROMPT, build_prompt
@@ -87,13 +95,19 @@ class QuestionService:
                 difficulty=difficulty.value,
                 count=count,
                 specialties=specialties,
+                projects=projects,
             ),
             response_model=QuestionBatch,
             system=SYSTEM_PROMPT,
         )
         if len(batch.questions) != count:
             raise ServiceUnavailableError("AI provider returned an incorrect question count")
-        return [question.model_dump() for question in batch.questions]
+        return include_project_questions(
+            [question.model_dump() for question in batch.questions],
+            projects,
+            interview_type,
+            difficulty,
+        )
 
     async def persist_question_set(
         self, *, interview_id: uuid.UUID, seeds: list[SeedQuestion]

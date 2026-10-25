@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Landing from "./pages/Landing";
 import RoleSelect from "./pages/RoleSelect";
 import Interview from "./pages/Interview";
+import { GlobalLoadingIndicator, LoadingState } from "./components/Loading";
 const Results = lazy(() => import("./pages/Results"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 
@@ -17,7 +18,8 @@ export default function App() {
         <AuthProvider>
         <div className="min-h-screen bg-[var(--bg)] text-[var(--text-primary)]">
           <Navbar />
-          <Suspense fallback={<p role="status" className="p-8 text-center">Loading…</p>}>
+          <GlobalLoadingIndicator />
+          <Suspense fallback={<LoadingState />}>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />

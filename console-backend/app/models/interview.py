@@ -84,6 +84,7 @@ class Interview(Base, UUIDPKMixin, TimestampMixin):
         ForeignKey("resumes.id", ondelete="SET NULL"), nullable=True
     )
     specialties: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
+    resume_projects: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     status: Mapped[InterviewStatus] = mapped_column(
         Enum(
             InterviewStatus,
@@ -167,5 +168,6 @@ class Evaluation(Base, UUIDPKMixin, TimestampMixin):
 
     # Free-text written feedback — heuristic-generated today, LLM-generated
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    assessment: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
 
     answer: Mapped[Answer] = relationship(back_populates="evaluation")

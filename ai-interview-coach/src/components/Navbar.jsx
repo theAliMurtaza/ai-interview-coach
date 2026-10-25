@@ -3,6 +3,7 @@ import { Mic } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
 import { profileInitial, profileName } from "../services/profileService";
+import { Spinner } from "./Loading";
 
 const LINKS = [
   { to: "/setup", label: "New session" },
@@ -62,7 +63,7 @@ export default function Navbar() {
                 <Link to="/dashboard" onClick={() => setProfileOpen(false)} className="mt-3 block text-sm text-[var(--teal)]">Your progress</Link>
               </div>}
             </div>
-            <button disabled={busy} onClick={exit} className="rounded-md px-3 py-2 text-sm text-[var(--teal)]">{busy ? "Signing out…" : "Sign out"}</button>
+            <button disabled={busy} aria-busy={busy} onClick={exit} className="rounded-md px-3 py-2 text-sm text-[var(--teal)]">{busy && <Spinner className="mr-2" />}{busy ? "Signing out…" : "Sign out"}</button>
           </>
             : <Link to="/login" className="rounded-md px-3 py-2 text-sm text-[var(--teal)]">Sign in</Link>}
         </div>

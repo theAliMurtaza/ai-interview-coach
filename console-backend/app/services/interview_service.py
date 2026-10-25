@@ -17,6 +17,7 @@ from app.schemas.evaluation import EvaluationResult
 from app.schemas.interview import InterviewCreate
 from app.services.evaluation_service import summarize_session
 from app.services.question_service import QuestionService
+from app.services.resume_projects import resume_projects
 from app.services.resume_service import ResumeService
 
 FOLLOW_UP_SCORE_THRESHOLD = 55
@@ -54,6 +55,7 @@ class InterviewService:
             question_count=payload.question_count,
             resume_id=payload.resume_id,
             specialties=specialties,
+            resume_projects=resume_projects(resume.raw_text, resume.projects) if resume else [],
             status=InterviewStatus.IN_PROGRESS,
         )
         self.db.add(interview)
@@ -65,6 +67,7 @@ class InterviewService:
             difficulty=payload.difficulty,
             count=payload.question_count,
             specialties=specialties,
+            projects=interview.resume_projects,
         )
         if settings.AI_ENABLED:
             seeds = await self.questions.generate_questions_with_llm(
@@ -73,6 +76,7 @@ class InterviewService:
                 difficulty=payload.difficulty,
                 count=payload.question_count,
                 specialties=specialties,
+                projects=interview.resume_projects,
             )
         await self.questions.persist_question_set(interview_id=interview.id, seeds=seeds)
 

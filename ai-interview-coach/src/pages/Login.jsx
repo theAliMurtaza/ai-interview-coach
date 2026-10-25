@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import GoogleSignIn from "../components/GoogleSignIn";
+import { LoadingState, Spinner } from "../components/Loading";
 
 export default function Login() {
   const { user, signIn, loading } = useAuth();
@@ -12,7 +13,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
   const destination = location.state?.from?.startsWith("/") && !location.state.from.startsWith("//") ? location.state.from : "/dashboard";
-  if (loading) return <p className="p-8 text-center">Loading…</p>;
+  if (loading) return <LoadingState />;
   if (user) return <Navigate to={destination} replace />;
   async function submit(event) {
     event.preventDefault();
@@ -39,7 +40,7 @@ export default function Login() {
       <label>Email<input name="email" type="email" autoComplete="email" required className={inputClass} /></label>
       <label>Password<input name="password" type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} minLength={mode === "register" ? 8 : 1} maxLength={128} required className={inputClass} /></label>
       {error && <p role="alert" className="mb-4 text-[var(--red)]">{error}</p>}
-      <button disabled={busy} className="w-full rounded bg-[var(--amber)] p-3 text-black disabled:opacity-50">{busy ? "Connecting…" : mode === "register" ? "Create account" : "Sign in"}</button>
+      <button disabled={busy} aria-busy={busy} className="w-full rounded bg-[var(--amber)] p-3 text-black disabled:opacity-50">{busy && <Spinner className="mr-2" />}{busy ? "Connecting…" : mode === "register" ? "Create account" : "Sign in"}</button>
     </form>
     <button disabled={busy} onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }} className="mt-5 text-[var(--teal)]">{mode === "login" ? "Create an account" : "Already have an account? Sign in"}</button>
   </main>;

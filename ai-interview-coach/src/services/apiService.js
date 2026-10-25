@@ -1,3 +1,5 @@
+import { beginActivity } from "./activityService";
+
 const API_BASE = (import.meta.env.VITE_API_URL || "/api/v1").replace(/\/$/, "");
 const KEY = "console_auth_v1";
 let tokens = null;
@@ -26,6 +28,12 @@ export function clearAuth() {
 }
 
 async function send(path, options = {}, accessToken) {
+  const finish = beginActivity();
+  try { return await sendRequest(path, options, accessToken); }
+  finally { finish(); }
+}
+
+async function sendRequest(path, options = {}, accessToken) {
   let response;
   const multipart = options.body instanceof FormData;
   try {

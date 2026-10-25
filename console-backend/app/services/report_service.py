@@ -50,6 +50,26 @@ class ReportService:
                     )
                     if ev.feedback:
                         paragraph(ev.feedback)
+                    assessment = ev.assessment or {}
+                    if assessment.get("method") in {"ai", "unanswered"}:
+                        paragraph(
+                            f"Correct: {assessment.get('correct_percentage')}% | "
+                            f"Incorrect: {assessment.get('incorrect_percentage')}% | "
+                            f"Missing: {assessment.get('missing_percentage')}%"
+                        )
+                        paragraph("Rubric shares; missing requirements are not incorrect claims.")
+                    else:
+                        covered = assessment.get("coverage_percentage")
+                        if covered is not None:
+                            paragraph(f"Concepts covered: {covered}% | Missing: {100 - covered}%")
+                        paragraph("Keyword coverage does not verify factual correctness.")
+                    for heading, key in [
+                        ("What you got right", "strengths"),
+                        ("What to correct", "corrections"),
+                        ("How to improve", "improvements"),
+                    ]:
+                        for item in assessment.get(key, []):
+                            paragraph(f"{heading}: {item}")
             else:
                 paragraph("Not answered")
         SimpleDocTemplate(

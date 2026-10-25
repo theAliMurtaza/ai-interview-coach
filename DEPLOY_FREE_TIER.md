@@ -108,6 +108,14 @@ Follow [Google sign-in setup](GOOGLE_SIGN_IN.md) to create a Google OAuth Web cl
 
 If login is blocked by CORS, check the exact frontend origin in Render. If the console reports a CSP block, check `VITE_API_URL` and redeploy Vercel. If `/ready` fails, check Neon/Upstash credentials and quotas in Render's logs. If resume upload fails, check the private bucket credentials and endpoint. Production API documentation routes are disabled intentionally.
 
+## Updating voice, project questions, and answer feedback
+
+Push both applications and redeploy Render before Vercel. The existing `python start.py` command applies Alembic revision `0004` automatically before serving requests. It adds project snapshots and detailed answer assessments while preserving existing rows. Other launch commands must run `alembic upgrade head` before starting the updated API. The local launcher applies the equivalent SQLite upgrade automatically.
+
+Voice reconnection and resume project questions work with `AI_ENABLED=false`. For factual answer grading with **correct / incorrect / missing percentages**, set `AI_ENABLED=true` and configure the existing `LLM_PROVIDER`, `LLM_MODEL`, and that provider's credential or local service URL in Render. Use your chosen provider's limits and billing settings. With AI disabled, feedback reports **concept coverage / missing concepts** and improvement suggestions; keyword matches cannot establish factual correctness. Existing reports are preserved rather than silently regraded.
+
+After deployment, start a new interview with a readable Projects section, verify a named project question, speak through a recognition reconnect, and confirm the saved feedback and PDF. Provider grading and actual microphone behavior need a live smoke test; automated tests simulate those external services.
+
 ## Free-tier limits
 
 Preparation verified on 2026-10-14: 114 backend tests, both real PostgreSQL/Redis integration tests, 11 frontend tests, all 5 connected browser tests, and the frontend production build passed. The production startup command, readiness, and Vercel CORS were exercised against disposable local services. The Python dependency audit found no known vulnerabilities. Cloud account credentials and a real hosted deployment remain to be verified after you configure the dashboards.

@@ -93,6 +93,7 @@ async def submit_answer(
             difficulty=question.interview.difficulty,
             count=len(pending),
             specialties=question.interview.specialties,
+            projects=question.interview.resume_projects,
             start_index=pending[0].order_index // 2 if pending else 0,
         )
         for item, seed in zip(pending, seeds, strict=True):

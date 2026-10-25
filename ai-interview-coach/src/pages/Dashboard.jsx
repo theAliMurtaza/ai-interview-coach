@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { listSessions } from "../services/interviewService";
 import { scoreLabel } from "../services/evaluationService";
+import { LoadingState, Spinner } from "../components/Loading";
 
 export default function Dashboard() {
   const [sessions, setSessions] = useState([]);
@@ -50,7 +51,7 @@ export default function Dashboard() {
       communication: s.summary.communicationScore,
     }));
 
-  if (loading) return <p role="status" className="p-8 text-center">Loading your saved interviews…</p>;
+  if (loading) return <LoadingState>Loading your saved interviews…</LoadingState>;
   if (storageError && !sessions.length) return <div className="p-8 text-center"><p role="alert">{storageError}</p><button onClick={() => setRetry(v => v + 1)} className="mt-4 text-[var(--teal)]">Retry connection</button></div>;
 
   if (sessions.length === 0) {
@@ -148,7 +149,7 @@ export default function Dashboard() {
           </Link>
         ))}
       </div>
-      {more && <button disabled={loadingMore} onClick={loadMore} className="mt-6 text-[var(--teal)]">{loadingMore ? "Loading…" : "Load more interviews"}</button>}
+      {more && <button disabled={loadingMore} aria-busy={loadingMore} onClick={loadMore} className="mt-6 text-[var(--teal)]">{loadingMore && <Spinner className="mr-2" />}{loadingMore ? "Loading…" : "Load more interviews"}</button>}
     </div>
   );
 }

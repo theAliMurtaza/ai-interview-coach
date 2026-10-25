@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { api, authenticate, hasSession, logout } from "../services/apiService";
+import { LoadingState } from "../components/Loading";
 
 const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
@@ -28,7 +29,7 @@ export const useAuth = () => useContext(AuthContext);
 export function RequireAuth({ children }) {
   const { user, loading, error, retry } = useAuth();
   const location = useLocation();
-  if (loading) return <p role="status" className="p-8 text-center">Connecting to your account…</p>;
+  if (loading) return <LoadingState>Connecting to your account…</LoadingState>;
   if (error) return <div className="p-8 text-center"><p role="alert">{error}</p><button onClick={retry} className="mt-4 text-[var(--teal)]">Retry connection</button></div>;
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   return children;

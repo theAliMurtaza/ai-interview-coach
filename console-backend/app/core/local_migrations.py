@@ -16,3 +16,14 @@ def upgrade_local_database(connection):
         connection.execute(
             text("ALTER TABLE interviews ADD COLUMN specialties JSON NOT NULL DEFAULT '[]'")
         )
+    if "resume_projects" not in columns:
+        connection.execute(
+            text("ALTER TABLE interviews ADD COLUMN resume_projects JSON NOT NULL DEFAULT '[]'")
+        )
+    inspector = inspect(connection)
+    if inspector.has_table("evaluations") and "assessment" not in {
+        column["name"] for column in inspector.get_columns("evaluations")
+    }:
+        connection.execute(
+            text("ALTER TABLE evaluations ADD COLUMN assessment JSON NOT NULL DEFAULT '{}'")
+        )

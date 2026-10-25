@@ -35,7 +35,9 @@ See [deployment instructions](../DEPLOYMENT.md) for Vercel, a separate backend, 
 
 Interview history belongs to the authenticated backend account. Login tokens are kept in tab session storage with an in-memory fallback; sign in again in another browser to access the same saved interviews. Unsubmitted drafts are kept in memory and may be lost on reload. Browser-only history from earlier versions is not automatically imported.
 
-Voice input depends on browser SpeechRecognition support and microphone permission. The browser vendor may process audio remotely. Both typed and spoken transcripts are sent to the API. Unexpected recognition termination falls back to typing while preserving captured text. Text-to-speech depends on installed browser/OS voices.
+Loading and saving show a native progress cursor, a top activity indicator, and contextual spinners. Overlapping requests keep the indicator active until all finish; failures clear it as well. Sign-in/out, resume uploads, session creation, answer saving, report loading, and PDF generation expose their working states. Spinner animations respect the browser's reduced-motion preference.
+
+Voice input depends on browser SpeechRecognition support and microphone permission. The browser vendor may process audio remotely. Both typed and spoken transcripts are sent to the API. Browser recognition disconnections reconnect automatically while preserving the transcript. Permission failures or repeated empty disconnections pause the microphone and offer Retry microphone; switching to typing is a user choice. Submission, changing questions, switching input, and leaving the page cancel pending restarts. Answers retain the existing 20,000-character limit. Text-to-speech depends on installed browser/OS voices.
 
 ## API connection
 
@@ -46,3 +48,7 @@ Session setup supports private PDF/DOCX/TXT resume uploads, saved-resume reuse, 
 Starting an interview requires sign-in. Registration collects a full name, and the navbar shows its first letter with a profile popover; older accounts without names use their email initial. Google sign-in uses the backend's public provider configuration and verified ID-token exchange. Follow [Google setup](../GOOGLE_SIGN_IN.md) to enable it.
 
 Job matching and billing do not yet have frontend screens.
+
+Resume project sections are detected in offline mode as well as through the optional AI parser. Named projects are previewed during setup and alternate with role/specialty questions. Saved resumes are supported without re-uploading. Each session snapshots its project context so difficulty changes retain those projects.
+
+Answer feedback is available under Previous answer feedback during the interview and in the saved report/PDF. AI assessments separate correct, incorrect, and missing rubric percentages, with corrections and actionable improvements. With AI disabled, keyword coverage is explicitly labeled and factual correctness is not claimed. Skipped answers count as missing, not wrong. Older reports retain their original scores and are not regraded.

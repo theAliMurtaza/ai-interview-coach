@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../services/apiService";
 import { ROLES } from "../data/questionBank";
+import { LoadingState, Spinner } from "./Loading";
 
 export const parseSpecialties = text => [...new Map(text.split(",").map(s => s.trim()).filter(Boolean).map(s => [s.toLowerCase(), s])).values()];
 
@@ -71,9 +72,9 @@ export default function ResumeSetup({ resumeId, specialties, onResume, onSpecial
     <input id="resume-file" type="file" accept=".pdf,.docx,.txt" onChange={upload} disabled={disabled || uploading || loading}
       className="mt-2 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[var(--teal-dim)] file:px-4 file:py-2 file:text-[var(--text-primary)] disabled:opacity-50" />
     <p className="mt-2 text-xs text-[var(--text-muted)]">Readable PDF, DOCX, or TXT, up to 10 MB. Scanned images need text recognition first. Saved resumes are private to your account.</p>
-    {uploading && <p role="status" className="mt-2 text-sm">Uploading and reading your resume…</p>}
+    {uploading && <LoadingState className="mt-2 text-sm">Uploading and reading your resume…</LoadingState>}
     {error && <p role="alert" className="mt-2 text-sm text-[var(--red)]">{error}</p>}
-    {loading && <p className="mt-2 text-sm">Loading saved resumes…</p>}
+    {loading && <LoadingState className="mt-2 text-sm">Loading saved resumes…</LoadingState>}
     {resumes.length > 0 && <>
       <label htmlFor="saved-resume" className="mt-4 block text-sm font-medium">Saved resume</label>
       <select id="saved-resume" value={resumeId} onChange={event => selectResume(resumes.find(item => item.id === event.target.value))}
@@ -83,12 +84,18 @@ export default function ResumeSetup({ resumeId, specialties, onResume, onSpecial
       </select>
     </>}
     {listError && <p role="alert" className="mt-2 text-sm text-[var(--red)]">Could not load saved resumes: {listError}</p>}
-    {(hasMore || listError) && <button type="button" onClick={loadMore} disabled={loading || uploading || disabled} className="mt-2 text-sm text-[var(--teal)]">{listError ? "Retry loading resumes" : "Load more resumes"}</button>}
+    {(hasMore || listError) && <button type="button" onClick={loadMore} aria-busy={loading} disabled={loading || uploading || disabled} className="mt-2 text-sm text-[var(--teal)]">{loading && <Spinner className="mr-2" />}{listError ? "Retry loading resumes" : "Load more resumes"}</button>}
     {selected && <div className="mt-4">
       {selected.headline && <p className="mb-2 text-sm">Resume headline: <strong>{selected.headline}</strong></p>}
       <p role="status" className="mb-4 text-sm text-[var(--teal)]">{selected.suggested_role
         ? `Detected ${ROLES.find(role => role.id === selected.suggested_role)?.label || selected.suggested_role} from your headline. You can change the role below.`
         : "No clear interview role found in the headline. Choose a role below."}</p>
+      {selected.projects?.length > 0 && <div className="mb-4 rounded border border-[var(--border)] p-3">
+        <p className="text-sm font-medium">Projects for your interview</p>
+        <ul className="mt-2 list-disc pl-5 text-sm text-[var(--text-secondary)]">{selected.projects.map((project, index) => <li key={index}>{project.name || project.title}</li>)}</ul>
+        <p className="mt-2 text-xs text-[var(--text-muted)]">Your session will include questions about these projects alongside role and specialty questions.</p>
+      </div>}
+      {!selected.projects?.length && <p className="mb-4 text-xs text-[var(--text-muted)]">No named projects detected. To include project questions, use a Projects section with each project's name on its own line.</p>}
       <p className="text-sm font-medium">Detected skills</p>
       {selected.skills.length ? <div className="mt-2 flex flex-wrap gap-2">{[...new Set(selected.skills)].map(skill => {
         const active = topics.some(topic => topic.toLowerCase() === skill.toLowerCase());

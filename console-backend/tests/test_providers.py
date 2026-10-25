@@ -49,7 +49,14 @@ async def test_openai_completion_and_refusal(monkeypatch):
 async def test_ai_evaluation_preserves_measured_duration(monkeypatch):
     provider = AsyncMock()
     provider.generate_structured.return_value = AIGrade(
-        technical_score=80, feedback="Explain tradeoffs"
+        technical_score=80,
+        feedback="Explain tradeoffs",
+        correct_percentage=80,
+        incorrect_percentage=0,
+        missing_percentage=20,
+        strengths=["Clear explanation"],
+        corrections=[],
+        improvements=["Explain tradeoffs"],
     )
     monkeypatch.setattr("app.agents.llm_provider.get_llm_provider", lambda: provider)
     result = await EvaluationService().evaluate_with_llm(

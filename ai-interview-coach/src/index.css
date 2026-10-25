@@ -58,6 +58,13 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Keep controls usable while showing the native working cursor, including over
+   disabled buttons and text fields. Remove it once every operation finishes. */
+html[data-loading],
+html[data-loading] * {
+  cursor: progress !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);

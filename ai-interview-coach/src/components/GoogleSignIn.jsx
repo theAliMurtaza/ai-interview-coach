@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../services/apiService";
 import { loadGoogleIdentity } from "../services/googleService";
+import { LoadingState } from "./Loading";
 
 export default function GoogleSignIn({ onCredential, disabled }) {
   const host = useRef(null);
@@ -38,7 +39,7 @@ export default function GoogleSignIn({ onCredential, disabled }) {
 
   return <div className="mb-6">
     <div ref={host} inert={disabled ? true : undefined} className={disabled ? "pointer-events-none opacity-50" : ""} />
-    {status === "loading" && <p role="status" className="text-sm text-[var(--text-muted)]">Loading Google sign-in…</p>}
+    {status === "loading" && <LoadingState className="text-sm text-[var(--text-muted)]">Loading Google sign-in…</LoadingState>}
     {status === "unavailable" && <>
       <button disabled className="w-full rounded border border-[var(--border)] p-3 text-[var(--text-muted)]">Continue with Google</button>
       <p className="mt-2 text-sm text-[var(--text-muted)]">Google sign-in is not available yet. Use email and password below.</p>

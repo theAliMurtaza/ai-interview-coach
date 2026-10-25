@@ -2,7 +2,7 @@
 
 import re
 
-from app.schemas.evaluation import EvaluationResult
+from app.schemas.evaluation import AnswerAssessment, EvaluationResult
 
 FILLER_WORDS = [
     "um",
@@ -89,6 +89,42 @@ class EvaluationService:
         scores_to_blend = [s for s in candidate_scores if s is not None]
         overall_score = round(sum(scores_to_blend) / len(scores_to_blend)) if scores_to_blend else 0
 
+        improvements = []
+        if not words:
+            improvements.append(
+                "Record an answer: state your approach, explain why, and give an example."
+            )
+        else:
+            if concepts_missed:
+                improvements.append(
+                    "Explain these missing points in your own words: "
+                    + ", ".join(concepts_missed)[:700]
+                    + "."
+                )
+            improvements.append(
+                "Give one concrete example, explain your own contribution, and describe the result."
+            )
+            if filler_ratio > 0.03:
+                improvements.append(
+                    "Replace repeated filler words with a short pause between ideas."
+                )
+            if wpm > 180:
+                improvements.append("Slow down and separate your answer into clear steps.")
+            elif wpm < 90:
+                improvements.append("Rehearse a concise explanation with fewer long pauses.")
+        assessment = AnswerAssessment(
+            method="keyword" if words else "unanswered",
+            coverage_percentage=concept_coverage,
+            correct_percentage=None if words else 0,
+            incorrect_percentage=None if words else 0,
+            missing_percentage=(
+                (100 - concept_coverage)
+                if concept_coverage is not None
+                else (100 if not words else None)
+            ),
+            improvements=improvements,
+        )
+
         return EvaluationResult(
             overall_score=overall_score,
             communication_score=communication_score,
@@ -104,6 +140,7 @@ class EvaluationService:
                 if concepts_missed
                 else "Use concrete examples and explain the outcome."
             ),
+            assessment=assessment,
         )
 
     async def evaluate_with_llm(
@@ -134,6 +171,16 @@ class EvaluationService:
             update={
                 "technical_score": grade.technical_score,
                 "feedback": grade.feedback,
+                "assessment": AnswerAssessment(
+                    method="ai",
+                    correct_percentage=grade.correct_percentage,
+                    incorrect_percentage=grade.incorrect_percentage,
+                    missing_percentage=grade.missing_percentage,
+                    coverage_percentage=deterministic.assessment.coverage_percentage,
+                    strengths=grade.strengths,
+                    corrections=grade.corrections,
+                    improvements=grade.improvements,
+                ),
                 "overall_score": round(
                     0.6 * grade.technical_score + 0.4 * deterministic.communication_score, 1
                 ),

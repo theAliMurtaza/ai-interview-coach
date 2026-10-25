@@ -121,6 +121,25 @@ export function generateSessionPdf(session) {
       doc.setTextColor(0);
     }
 
+    const assessment = evalu.assessment || {};
+    const assessed = ["ai", "unanswered"].includes(assessment.method);
+    const coverage = assessment.coverage_percentage ?? evalu.conceptCoverage;
+    const assessmentLines = assessed ? [
+      `Correct: ${assessment.correct_percentage}% | Incorrect: ${assessment.incorrect_percentage}% | Missing: ${assessment.missing_percentage}%`,
+      assessment.method === "ai" ? "AI estimates of answer requirements; missing points are not counted as wrong." : "No answer recorded; requirements are missing, not incorrect.",
+    ] : [
+      coverage == null ? "Concept coverage: not assessed" : `Concepts covered: ${coverage}% | Missing concepts: ${100 - coverage}%`,
+      "Keyword coverage does not verify factual correctness.",
+    ];
+    if (evalu.feedback) assessmentLines.push(`Feedback: ${evalu.feedback}`);
+    for (const [heading, items] of [
+      ["What you got right", assessment.strengths], ["What to correct", assessment.corrections],
+      ["How to improve", assessment.improvements],
+    ]) {
+      for (const item of items || []) assessmentLines.push(`${heading}: ${item}`);
+    }
+    for (const line of assessmentLines) writeLines(doc.splitTextToSize(line, CONTENT_WIDTH));
+
     y += 5;
   });
 

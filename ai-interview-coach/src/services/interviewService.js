@@ -9,7 +9,10 @@ export function toSession(interview) {
     const a = q.answer, e = a.evaluation;
     return { question: q.text, transcript: a.transcript || "(skipped)", evaluation: {
       overallScore: e.overall_score, communicationScore: e.communication_score,
-      technicalScore: e.technical_score, conceptCoverage: e.technical_score,
+      technicalScore: e.technical_score,
+      conceptCoverage: (e.concepts_hit?.length + e.concepts_missed?.length) > 0
+        ? Math.round(100 * e.concepts_hit.length / (e.concepts_hit.length + e.concepts_missed.length)) : null,
+      assessment: e.assessment || { method: "legacy" },
       starScore: e.star_score, wpm: e.wpm, fillerCount: e.filler_count,
       fillerHits: e.filler_breakdown, conceptsHit: e.concepts_hit,
       conceptsMissed: e.concepts_missed, durationSeconds: a.duration_seconds,

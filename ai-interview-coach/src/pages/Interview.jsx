@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Mic, Keyboard, SkipForward, CheckCircle2 } from "lucide-react";
 import Waveform from "../components/Waveform";
 import AgentAvatar from "../components/AgentAvatar";
+import AnswerAssessment from "../components/AnswerAssessment";
+import { LoadingState, Spinner } from "../components/Loading";
 import { useInterview } from "../context/InterviewContext";
 import { startListening, speak, cancelSpeaking, isSpeechRecognitionSupported, isSpeechSynthesisSupported } from "../services/speechService";
 import { getInterview, submitAnswer, completeInterview, toSession } from "../services/interviewService";
@@ -15,6 +17,8 @@ export default function Interview() {
   const [phase, setPhase] = useState("loading");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [voiceState, setVoiceState] = useState("starting");
+  const [lastFeedback, setLastFeedback] = useState(null);
   const [text, setText] = useState("");
   const [retry, setRetry] = useState(0);
   const voiceSupported = isSpeechRecognitionSupported();
@@ -29,15 +33,26 @@ export default function Interview() {
 
   function updateText(value) { transcript.current = value.slice(0, 20000); setText(transcript.current); }
   function stopRecognition() { recognition.current?.stop(); recognition.current = null; }
-  function fallback() {
-    typingRef.current = true; setTyping(true);
-    setNotice("Voice input stopped. You can continue typing your answer.");
+  function pauseVoice(err) {
+    setVoiceState("paused");
+    setNotice(["not-allowed", "service-not-allowed"].includes(err?.error)
+      ? "Microphone access was denied. Allow it in your browser, then retry the microphone. Your answer is preserved."
+      : "Voice input is paused. Retry the microphone or choose typing. Your answer is preserved.");
   }
   function listen() {
     if (typingRef.current) return;
+    stopRecognition(); setNotice("");
     const prefix = transcript.current;
     recognition.current = startListening({
-      onResult: value => updateText(`${prefix} ${value}`.trim()), onError: fallback, onEnd: fallback,
+      onResult: value => {
+        const answer = `${prefix} ${value}`.trim();
+        updateText(answer);
+        if (answer.length >= 20000) {
+          stopRecognition(); setVoiceState("paused");
+          setNotice("The 20,000-character answer limit has been reached. Submit your answer or switch to typing to edit it.");
+        }
+      },
+      onError: pauseVoice, onState: setVoiceState,
     });
   }
 
@@ -74,6 +89,8 @@ export default function Interview() {
 
   async function advance(data, generation) {
     if (generation !== lifecycle.current) return;
+    const graded = data.questions.find(q => q.id === current?.id && q.answer?.evaluation);
+    if (graded) setLastFeedback(toSession({ ...data, questions: [graded] }).answers[0]);
     setInterview(data);
     if (data.status === "completed") { navigate(`/results/${id}`, { replace: true }); return; }
     if (data.questions.every(q => q.answer)) {
@@ -100,7 +117,8 @@ export default function Interview() {
     } catch (err) {
       if (generation === lifecycle.current) {
         setError(`${err.message} Your answer is still here; retry when connected.`);
-        busy.current = false; typingRef.current = true; setTyping(true); setPhase("listening");
+        busy.current = false; setPhase("listening");
+        if (!typingRef.current) listen();
       }
     }
   }
@@ -119,12 +137,12 @@ export default function Interview() {
   }
 
   if (!interview) return <div className="mx-auto max-w-3xl p-8">
-    {error ? <><p role="alert">{error}</p><button className="mt-4 text-[var(--teal)]" onClick={() => setRetry(v => v + 1)}>Retry connection</button></> : <p role="status">Loading your interview…</p>}
+    {error ? <><p role="alert">{error}</p><button className="mt-4 text-[var(--teal)]" onClick={() => setRetry(v => v + 1)}>Retry connection</button></> : <LoadingState className="text-center">Loading your interview…</LoadingState>}
   </div>;
   if (!current) return <div className="mx-auto max-w-3xl p-8">
     <h1 className="text-2xl">All questions answered</h1>
     {error && <p role="alert" className="mt-4 text-[var(--red)]">{error}</p>}
-    <button disabled={phase === "processing"} onClick={finish} className="mt-6 rounded bg-[var(--amber)] px-5 py-3 text-black">{phase === "processing" ? "Saving report…" : "Finish and view report"}</button>
+    <button disabled={phase === "processing"} aria-busy={phase === "processing"} onClick={finish} className="mt-6 rounded bg-[var(--amber)] px-5 py-3 text-black">{phase === "processing" && <Spinner className="mr-2" />}{phase === "processing" ? "Saving report…" : "Finish and view report"}</button>
   </div>;
 
   const labels = toSession(interview);
@@ -138,22 +156,28 @@ export default function Interview() {
       <h1 className="text-xl font-medium">{current.is_follow_up && "Follow-up: "}{current.text}</h1>
       <div className="mt-6 flex items-center gap-5 rounded-lg bg-[var(--surface-raised)] p-5">
         <AgentAvatar state={agentState} /><div className="flex-1">
-          <Waveform mode={phase === "speaking" ? "speaking" : phase === "listening" && !typing ? "listening" : "idle"} height={48} barCount={30} className="w-full justify-between" />
-          <p role="status" className="mt-3 text-sm text-[var(--text-muted)]">{phase === "speaking" ? "Agent is speaking…" : phase === "processing" ? "Saving and scoring your answer…" : typing ? "Type your answer below" : "Listening — speak your answer"}</p>
+          <Waveform mode={phase === "speaking" ? "speaking" : phase === "listening" && !typing && voiceState === "listening" ? "listening" : "idle"} height={48} barCount={30} className="w-full justify-between" />
+          <p role="status" className="mt-3 text-sm text-[var(--text-muted)]">{phase === "speaking" ? "Agent is speaking…" : phase === "processing" ? "Saving and scoring your answer…" : typing ? "Type your answer below" : voiceState === "paused" ? "Microphone paused — your answer is preserved" : voiceState === "reconnecting" ? "Reconnecting microphone — your answer is preserved…" : voiceState === "starting" ? "Starting microphone…" : "Listening — speak your answer"}</p>
         </div>
       </div>
       {notice && <p className="mt-4 text-[var(--amber)]">{notice}</p>}
       {error && <p role="alert" className="mt-4 text-[var(--red)]">{error}</p>}
       {typing ? <form onSubmit={event => { event.preventDefault(); submit(); }} className="mt-4">
         <textarea aria-label="Your answer" value={text} onChange={event => updateText(event.target.value)} maxLength={20000} disabled={phase !== "listening"} rows={5} className="w-full rounded border border-[var(--border)] bg-[var(--bg)] p-3" />
-        <button disabled={phase !== "listening"} className="mt-3 rounded bg-[var(--teal)] px-4 py-2 text-black disabled:opacity-40">Submit answer</button>
+        <button disabled={phase !== "listening"} aria-busy={phase === "processing"} className="mt-3 rounded bg-[var(--teal)] px-4 py-2 text-black disabled:opacity-40">{phase === "processing" && <Spinner className="mr-2" />}{phase === "processing" ? "Saving answer…" : "Submit answer"}</button>
       </form> : <p className="mt-4 min-h-12 rounded bg-[var(--bg)] p-3">{text || "Your transcript will appear here."}</p>}
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        {!typing && <button disabled={phase !== "listening"} onClick={() => submit()} className="inline-flex items-center gap-2 rounded bg-[var(--amber)] px-4 py-2 text-black disabled:opacity-40"><CheckCircle2 size={16} />I'm done answering</button>}
+        {!typing && voiceState === "paused" && <button disabled={phase !== "listening" || text.length >= 20000} onClick={listen} className="rounded border border-[var(--teal)] px-4 py-2 text-[var(--teal)] disabled:opacity-40">Retry microphone</button>}
+        {!typing && <button disabled={phase !== "listening"} aria-busy={phase === "processing"} onClick={() => submit()} className="inline-flex items-center gap-2 rounded bg-[var(--amber)] px-4 py-2 text-black disabled:opacity-40">{phase === "processing" ? <Spinner /> : <CheckCircle2 size={16} />}{phase === "processing" ? "Saving answer…" : "I'm done answering"}</button>}
         {voiceSupported && <button disabled={phase !== "listening"} onClick={toggleInput} className="inline-flex items-center gap-2 text-sm disabled:opacity-40">{typing ? <Mic size={16} /> : <Keyboard size={16} />}{typing ? "Switch to voice" : "Switch to typing"}</button>}
         <button disabled={phase !== "listening"} onClick={() => submit(true)} className="ml-auto inline-flex items-center gap-2 text-sm disabled:opacity-40">Skip question <SkipForward size={16} /></button>
       </div>
     </div>
+    {lastFeedback && <details className="mt-5 rounded-lg border border-[var(--border)] p-4">
+      <summary className="cursor-pointer text-sm font-medium">Previous answer feedback</summary>
+      <p className="mt-3 text-sm text-[var(--text-muted)]">{lastFeedback.question}</p>
+      <AnswerAssessment evaluation={lastFeedback.evaluation} />
+    </details>}
     <p className="mt-4 text-center text-xs text-[var(--text-muted)]">Answers and scores are saved to your account on the backend. Browser voice recognition may send audio to your browser provider.</p>
   </main>;
 }

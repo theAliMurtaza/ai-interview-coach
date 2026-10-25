@@ -14,6 +14,7 @@ import { isSpeechRecognitionSupported } from "../services/speechService";
 import { createInterview } from "../services/interviewService";
 import { useRef } from "react";
 import ResumeSetup, { parseSpecialties } from "../components/ResumeSetup";
+import { Spinner } from "../components/Loading";
 
 const COUNT_PRESETS = [5, 10, 15, 20, 30, 40];
 
@@ -245,10 +246,11 @@ export default function RoleSelect() {
       {error && <p role="alert" className="mt-6 text-[var(--red)]">{error}</p>}
       <button
         onClick={handleStart}
+        aria-busy={busy}
         disabled={!canStart || busy || uploading || Boolean(specialtyError)}
         className="mt-12 inline-flex items-center gap-2 rounded-md bg-[var(--amber)] px-6 py-3 text-sm font-medium text-[#1a1305] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {busy ? "Creating interview…" : "Begin interview"} <ArrowRight size={16} />
+        {busy ? <Spinner /> : <ArrowRight size={16} />}{busy ? "Creating interview…" : "Begin interview"}
       </button>
       {!canStart && (
         <p className="mt-2 text-xs text-[var(--text-muted)]">Pick a role to continue.</p>

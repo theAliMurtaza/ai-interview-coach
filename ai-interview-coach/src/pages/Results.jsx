@@ -1,9 +1,12 @@
 import { useParams, Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, RotateCcw, LayoutDashboard, ChevronDown } from "lucide-react";
 import { getSession } from "../services/interviewService";
 import { generateSessionPdf } from "../services/reportService";
 import ScoreBar from "../components/ScoreBar";
+import AnswerAssessment from "../components/AnswerAssessment";
+import { LoadingState, Spinner } from "../components/Loading";
+import { beginActivity } from "../services/activityService";
 import { scoreLabel } from "../services/evaluationService";
 
 export default function Results() {
@@ -13,6 +16,25 @@ export default function Results() {
   const [retry, setRetry] = useState(0);
   const [session, setSession] = useState(null);
   const [openIndex, setOpenIndex] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+  const pdfBusy = useRef(false);
+
+  async function downloadPdf() {
+    if (pdfBusy.current) return;
+    pdfBusy.current = true;
+    const finish = beginActivity();
+    setDownloading(true); setDownloadError("");
+    try {
+      // Paint the working state before synchronous PDF generation starts.
+      await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+      generateSessionPdf(session);
+    } catch {
+      setDownloadError("The PDF could not be generated. Please retry.");
+    } finally {
+      pdfBusy.current = false; setDownloading(false); finish();
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -23,7 +45,7 @@ export default function Results() {
     return () => { active = false; };
   }, [id, retry]);
 
-  if (loading) return <p role="status" className="p-8 text-center">Loading your saved report…</p>;
+  if (loading) return <LoadingState>Loading your saved report…</LoadingState>;
   if (error) return <div className="p-8 text-center"><p role="alert">{error}</p><button onClick={() => setRetry(v => v + 1)} className="mt-4 text-[var(--teal)]">Retry connection</button></div>;
   if (session?.status !== "completed" && session) return <div className="p-8 text-center">This interview is still in progress. <Link to={`/interview/${id}`} className="text-[var(--teal)]">Resume interview</Link></div>;
 
@@ -73,7 +95,7 @@ export default function Results() {
         <ScoreBar
           label="Technical / structure"
           value={summary.technicalScore}
-          sublabel="concept coverage"
+          sublabel="answer score; see each assessment below"
         />
       </div>
 
@@ -96,10 +118,12 @@ export default function Results() {
       {/* Actions */}
       <div className="mt-6 flex flex-wrap gap-3">
         <button
-          onClick={() => generateSessionPdf(session)}
+          onClick={downloadPdf}
+          disabled={downloading}
+          aria-busy={downloading}
           className="inline-flex items-center gap-2 rounded-md bg-[var(--amber)] px-4 py-2.5 text-sm font-medium text-[#1a1305]"
         >
-          <Download size={16} /> Download PDF report
+          {downloading ? <Spinner /> : <Download size={16} />}{downloading ? "Generating PDF…" : "Download PDF report"}
         </button>
         <Link
           to="/setup"
@@ -116,6 +140,7 @@ export default function Results() {
       </div>
 
       {/* Per-question breakdown */}
+      {downloadError && <p role="alert" className="mt-3 text-[var(--red)]">{downloadError}</p>}
       <h2 className="mb-3 mt-10 text-lg font-medium">Question-by-question</h2>
       <div className="space-y-3">
         {session.answers.map((a, i) => {
@@ -161,6 +186,7 @@ export default function Results() {
                     </p>
                   )}
                   {e.feedback && <p className="mt-3 text-[var(--text-secondary)]">{e.feedback}</p>}
+                  <AnswerAssessment evaluation={e} />
                 </div>
               )}
             </div>
