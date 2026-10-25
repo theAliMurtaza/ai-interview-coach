@@ -92,10 +92,14 @@ The frontend talks directly to the Render API, including multipart resume upload
 
 Once Vercel assigns your domain, update Render's `BACKEND_CORS_ORIGINS` to that exact origin and redeploy the backend. For previews, add only the specific preview origins you intend to use. A preview URL is not automatically authorized by the production origin. Changes to `VITE_API_URL` require a new frontend build.
 
-## 5. Verify the published app
+## 5. Enable Google sign-in (optional)
+
+Follow [Google sign-in setup](GOOGLE_SIGN_IN.md) to create a Google OAuth Web client, authorize the Vercel origin, and set `GOOGLE_OAUTH_CLIENT_ID` in Render. Deploy both updated applications so the backend exposes the public client ID and the frontend has the Google button and required security headers. Email/password login works without Google configuration.
+
+## 6. Verify the published app
 
 1. Open the API `/ready` URL, then open the Vercel app. A sleeping free API can take roughly a minute to start; retry after it wakes.
-2. Create an account and sign in. Upload a readable test PDF/DOCX/TXT and select its detected skills or enter specialties.
+2. Click Start a mock interview while signed out; confirm sign-in is required. Create an account with your name and confirm its initial appears in the profile circle. Upload a readable test PDF/DOCX/TXT with a clear role headline, confirm the suggested role and skills, and adjust them if needed. If Google is configured, test Continue with Google as well.
 3. Start a three-question typed interview, submit an answer, complete it, and download the report.
 4. Reload the report and dashboard. Start another session and confirm the saved resume is available.
 5. Verify browser refresh directly on `/setup`, `/dashboard`, and a saved `/results/:id` URL.

@@ -12,6 +12,7 @@ async function register(page) {
   await page.goto("/setup");
   await expect(page).toHaveURL(/\/login$/);
   await page.getByRole("button", { name: "Create an account", exact: true }).click();
+  await page.getByLabel("Full name", { exact: true }).fill("Alex Candidate");
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Create account", exact: true }).click();

@@ -41,6 +41,8 @@ Voice input depends on browser SpeechRecognition support and microphone permissi
 
 `src/services/apiService.js` handles requests, token rotation, and error messages. `interviewService.js` adapts server records for reports. `AuthContext.jsx` protects account pages. Local Vite proxies `/api` to port 8000 automatically. Results reload from the server, and answer retries reconcile saved state before posting again.
 
-Session setup supports private PDF/DOCX/TXT resume uploads, saved-resume reuse, detected skill selection, and manually entered specialties. The backend tailors questions to those topics, including during adaptive difficulty changes. Local mode uses built-in topic templates; AI-enabled deployments include the selected topics in the generation prompt.
+Session setup supports private PDF/DOCX/TXT resume uploads, saved-resume reuse, headline-based role selection, detected skill selection, and manually entered specialties. Recognized headlines automatically select the interview role and relevant skills; unclear headlines require a manual choice. Users can override suggestions. The backend tailors questions to those topics, including during adaptive difficulty changes. Local mode uses built-in topic templates; AI-enabled deployments include the selected topics in the generation prompt.
 
-Job matching, Google login, and billing do not yet have frontend screens.
+Starting an interview requires sign-in. Registration collects a full name, and the navbar shows its first letter with a profile popover; older accounts without names use their email initial. Google sign-in uses the backend's public provider configuration and verified ID-token exchange. Follow [Google setup](../GOOGLE_SIGN_IN.md) to enable it.
+
+Job matching and billing do not yet have frontend screens.

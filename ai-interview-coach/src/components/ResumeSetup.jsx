@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../services/apiService";
+import { ROLES } from "../data/questionBank";
 
 export const parseSpecialties = text => [...new Map(text.split(",").map(s => s.trim()).filter(Boolean).map(s => [s.toLowerCase(), s])).values()];
 
@@ -35,8 +36,8 @@ export default function ResumeSetup({ resumeId, specialties, onResume, onSpecial
   }
 
   function selectResume(resume) {
-    onResume(resume?.id || "");
-    if (resume) onSpecialties(resume.skills.filter(s => s.trim().length <= 60 && !s.includes(",")).slice(0, 20).join(", "));
+    onResume(resume?.id || "", resume);
+    if (resume) onSpecialties((resume.suggested_specialties ?? resume.skills).filter(s => s.trim().length <= 60 && !s.includes(",")).slice(0, 20).join(", "));
   }
 
   async function upload(event) {
@@ -65,7 +66,7 @@ export default function ResumeSetup({ resumeId, specialties, onResume, onSpecial
 
   return <section className="mt-8 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5" aria-labelledby="resume-heading">
     <h2 id="resume-heading" className="text-lg font-medium">Resume & specialties</h2>
-    <p className="mt-1 text-sm text-[var(--text-secondary)]">Upload a resume to detect your skills, or enter specialties below. Review the topics before starting your interview.</p>
+    <p className="mt-1 text-sm text-[var(--text-secondary)]">Upload a resume to select your interview role from its headline and detect relevant skills. You can adjust the role and topics before starting.</p>
     <label htmlFor="resume-file" className="mt-4 block text-sm font-medium">Upload resume (optional)</label>
     <input id="resume-file" type="file" accept=".pdf,.docx,.txt" onChange={upload} disabled={disabled || uploading || loading}
       className="mt-2 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[var(--teal-dim)] file:px-4 file:py-2 file:text-[var(--text-primary)] disabled:opacity-50" />
@@ -84,6 +85,10 @@ export default function ResumeSetup({ resumeId, specialties, onResume, onSpecial
     {listError && <p role="alert" className="mt-2 text-sm text-[var(--red)]">Could not load saved resumes: {listError}</p>}
     {(hasMore || listError) && <button type="button" onClick={loadMore} disabled={loading || uploading || disabled} className="mt-2 text-sm text-[var(--teal)]">{listError ? "Retry loading resumes" : "Load more resumes"}</button>}
     {selected && <div className="mt-4">
+      {selected.headline && <p className="mb-2 text-sm">Resume headline: <strong>{selected.headline}</strong></p>}
+      <p role="status" className="mb-4 text-sm text-[var(--teal)]">{selected.suggested_role
+        ? `Detected ${ROLES.find(role => role.id === selected.suggested_role)?.label || selected.suggested_role} from your headline. You can change the role below.`
+        : "No clear interview role found in the headline. Choose a role below."}</p>
       <p className="text-sm font-medium">Detected skills</p>
       {selected.skills.length ? <div className="mt-2 flex flex-wrap gap-2">{[...new Set(selected.skills)].map(skill => {
         const active = topics.some(topic => topic.toLowerCase() === skill.toLowerCase());

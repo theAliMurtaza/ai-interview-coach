@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.deps import get_db
 from app.schemas.auth import (
     GoogleOAuthRequest,
@@ -12,6 +13,12 @@ from app.schemas.auth import (
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.get("/providers")
+async def auth_providers() -> dict:
+    # OAuth client IDs are public; never expose provider secrets here.
+    return {"google_client_id": settings.GOOGLE_OAUTH_CLIENT_ID or None}
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)

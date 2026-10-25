@@ -4,7 +4,7 @@
 
 The frontend connects to FastAPI for accounts, interviews, scoring, and history. Transcripts are saved in the backend database. Browser speech recognition may additionally send audio to the browser vendor. Typing avoids that speech service but still sends answers to your backend. PDF export uses the saved results.
 
-The API requires production secrets and managed PostgreSQL (with pgvector), Redis, and private S3-compatible storage. AI, Google login, and billing need their respective provider credentials. Google login and billing do not yet have frontend screens. Use [the local launcher](LOCAL_DEVELOPMENT.md) to test the connected core flow first.
+The API requires production secrets and managed PostgreSQL (with pgvector), Redis, and private S3-compatible storage. AI and billing need their respective provider credentials. Google login requires a public OAuth Web client ID and an authorized frontend origin; follow [Google sign-in setup](GOOGLE_SIGN_IN.md). Billing does not yet have a frontend screen. Use [the local launcher](LOCAL_DEVELOPMENT.md) to test the connected core flow first.
 
 ## Vercel frontend with a separate backend (selected target)
 

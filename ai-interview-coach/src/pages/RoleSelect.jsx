@@ -47,6 +47,11 @@ export default function RoleSelect() {
   const submitting = useRef(false);
   const canStart = Boolean(role);
 
+  function selectResume(id, resume) {
+    setResumeId(id);
+    if (resume) setRole(resume.suggested_role || "");
+  }
+
   const handleStart = async () => {
     if (submitting.current || !role || uploading || specialtyError) return;
     submitting.current = true;
@@ -82,7 +87,7 @@ export default function RoleSelect() {
         should be. You can change this every session.
       </p>
 
-      <ResumeSetup resumeId={resumeId} specialties={specialties} onResume={setResumeId}
+      <ResumeSetup resumeId={resumeId} specialties={specialties} onResume={selectResume}
         onSpecialties={setSpecialties} onUploading={setUploading} disabled={busy} />
       {specialtyError && <p role="alert" className="mt-2 text-sm text-[var(--red)]">{specialtyError}</p>}
       {topics.length > questionCount && <p className="mt-2 text-sm text-[var(--text-secondary)]">You selected more topics than questions. Increase the question count to cover every specialty.</p>}
